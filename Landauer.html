@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Landauer's principle: what does erasing a bit cost?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#0e1322;
+    --ink:#ece8dc;
+    --ink-soft:#98a2b6;
+    --rule:#26304a;
+    --grid:#1b2439;
+    --field:#141b2e;
+    --accent:#ffb347;
+    --accent-rgb:255,179,71;
+    --scale:linear-gradient(90deg,#7d74ff,#4d94ff 30%,#3fd0d6 55%,#ffb347 71%,#ff6a52 88%,#e0407a);
+    --err:#ff8a80;
+    --serif:"Instrument Serif","Iowan Old Style",Georgia,"Times New Roman",serif;
+    --sans:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; scroll-padding-top:env(safe-area-inset-top,0px); }
+  body{
+    margin:0; min-height:100vh;
+    background:
+      radial-gradient(1000px 520px at 50% -8%, rgba(var(--accent-rgb),.17), transparent 70%),
+      var(--paper);
+    background-repeat:no-repeat;
+    color:var(--ink);
+    font:16px/1.55 var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{ max-width:900px; margin:0 auto; padding:44px 22px 90px; }
+
+  /* ---------- header ---------- */
+  h1{ font:400 clamp(26px,4vw,32px)/1.1 var(--serif); margin:0 0 12px; letter-spacing:.005em; color:var(--ink-soft); }
+  .eq{ font:italic 400 clamp(40px,7.5vw,64px)/1.05 var(--serif); margin:0 0 18px; }
+  .eq sub{ font-size:.5em; vertical-align:baseline; position:relative; top:.28em; }
+  .lede{ max-width:56ch; color:var(--ink-soft); margin:0; }
+
+  sup{ font-size:.55em; line-height:0; position:relative; vertical-align:baseline; top:-.65em; }
+
+  /* ---------- the answer ---------- */
+  .answer{ margin:46px 0 0; }
+  .answer .lead{ font:400 clamp(22px,3.4vw,28px)/1.25 var(--serif); margin:0; }
+  .answer .lead b{ font-weight:400; color:var(--accent); }
+  .answer .big{
+    display:block; margin:8px 0 6px;
+    font:400 clamp(38px,9.5vw,88px)/1.02 var(--serif);
+    color:var(--accent); transition:color .3s;
+    font-variant-numeric:lining-nums tabular-nums;
+  }
+  .answer .sub{ margin:0; color:var(--ink-soft); max-width:60ch; }
+
+  /* ---------- chart ---------- */
+  .chart{ margin-top:30px; position:relative; touch-action:pan-y; cursor:col-resize; user-select:none; -webkit-user-select:none; }
+  .chart svg{ display:block; width:100%; height:auto; overflow:visible; font-family:var(--sans); }
+  .grid{ stroke:var(--grid); stroke-width:1; }
+  .axis{ stroke:var(--ink-soft); stroke-width:1; opacity:.6; }
+  .tick{ fill:var(--ink-soft); font-size:12px; }
+  .axtitle{ fill:var(--ink-soft); font-size:12.5px; }
+  .floorline{ stroke:var(--accent); stroke-width:3; stroke-linecap:round; fill:none; }
+  .shade{ fill:rgba(var(--accent-rgb),.09); }
+  .hwline{ stroke:var(--ink); stroke-width:1.5; stroke-dasharray:6 5; opacity:.85; }
+  .gap{ stroke:var(--ink); stroke-width:1.5; opacity:.9; }
+  .guide{ stroke:var(--accent); stroke-width:1.5; stroke-dasharray:2 4; opacity:.9; }
+  .lbl{ fill:var(--ink); font-size:13px; paint-order:stroke; stroke:var(--paper); stroke-width:4px; stroke-linejoin:round; }
+  .lbl.soft{ fill:var(--ink-soft); }
+  .lbl.acc{ fill:var(--accent); font-weight:600; }
+  .zone{ fill:var(--ink-soft); font:italic 400 15px var(--serif); }
+  .dot{ fill:var(--paper); stroke:var(--ink-soft); stroke-width:1.5; }
+  .marker{ fill:var(--accent); stroke:var(--ink); stroke-width:2.5; }
+
+  .hint{ margin:10px 0 6px; color:var(--ink-soft); font-size:14px; }
+
+  /* ---------- sections ---------- */
+  section.block{ margin-top:34px; padding-top:28px; border-top:1px solid var(--rule); }
+  h2{ font:600 17px/1.3 var(--sans); margin:0 0 16px; letter-spacing:.005em; }
+
+  label.f{ display:block; font-size:14px; color:var(--ink-soft); margin:0 0 6px; }
+  input[type=text], select{
+    font:inherit; color:var(--ink); background:var(--field);
+    border:1px solid var(--rule); border-radius:6px;
+    padding:9px 12px; min-height:44px; width:100%;
+  }
+  select{ width:auto; }
+  input[type=text]:hover, select:hover{ border-color:#3a4767; }
+  input[aria-invalid="true"]{ border-color:var(--err); }
+  .inline{ display:flex; gap:10px; }
+  .inline input{ flex:1 1 120px; min-width:0; }
+  .err{ color:var(--err); font-size:13.5px; min-height:1.3em; margin:5px 0 0; }
+  .note{ color:var(--ink-soft); font-size:13.5px; margin:5px 0 0; }
+
+  :focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+
+  input[type=range]{ -webkit-appearance:none; appearance:none; width:100%; height:30px; background:transparent; margin:0; cursor:pointer; }
+  input[type=range]::-webkit-slider-runnable-track{ height:6px; border-radius:3px; background:var(--scale); }
+  input[type=range]::-moz-range-track{ height:6px; border-radius:3px; background:var(--scale); }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:22px; height:22px; border-radius:50%;
+    background:var(--ink); border:4px solid var(--paper); box-shadow:0 0 0 2px var(--ink);
+    margin-top:-8px;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:14px; height:14px; border-radius:50%;
+    background:var(--ink); border:4px solid var(--paper); box-shadow:0 0 0 2px var(--ink);
+  }
+  input[type=range]:focus-visible{ outline:2px solid var(--ink); outline-offset:6px; }
+
+  .tempfields{ display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; margin-top:14px; }
+  .tempfields .fld{ flex:1 1 240px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .chip{
+    font:inherit; font-size:14px; color:var(--ink); background:transparent;
+    border:1px solid var(--rule); border-radius:6px; padding:6px 12px; min-height:36px; cursor:pointer;
+  }
+  .chip:hover{ border-color:var(--ink-soft); }
+  .chip[aria-pressed="true"]{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+  .datagrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:22px 26px; }
+  .datagrid .wide{ grid-column:1/-1; }
+
+  /* ---------- the bill ---------- */
+  .rows{ margin:0; padding:0; }
+  .row{
+    display:grid; grid-template-columns:minmax(190px,1fr) minmax(0,1.7fr);
+    gap:6px 26px; padding:18px 0; border-top:1px solid var(--rule);
+  }
+  .row:last-child{ border-bottom:1px solid var(--rule); }
+  .row dt{ margin:0; color:var(--ink-soft); }
+  .row dd{ margin:0; }
+  .row .v{ display:block; font:400 clamp(24px,3.4vw,31px)/1.15 var(--serif); font-variant-numeric:lining-nums tabular-nums; overflow-wrap:anywhere; }
+  .row .n{ display:block; color:var(--ink-soft); font-size:14px; margin-top:3px; }
+  .row .n sub{ font-size:.75em; vertical-align:baseline; position:relative; top:.25em; }
+  .warn{ color:var(--err); }
+
+  .fine{ max-width:64ch; color:var(--ink-soft); font-size:14.5px; margin:0; }
+  .fine + .fine{ margin-top:12px; }
+
+  @media (max-width:600px){
+    .page{ padding:32px 18px 70px; }
+    .row{ grid-template-columns:1fr; gap:4px; padding:16px 0; }
+  }
+  @media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <header>
+    <h1>Landauer's principle</h1>
+    <p class="eq" aria-label="E is at least k B T ln 2">E ≥ <i>k</i><sub>B</sub><i>T</i> ln 2</p>
+    <p class="lede">Wiping a bit of memory destroys information, and thermodynamics says that has to release heat. The least it can release depends on one thing, the temperature. Move it around and see how far real hardware sits above that floor.</p>
+  </header>
+
+  <noscript><p class="err">This calculator needs JavaScript to run.</p></noscript>
+
+  <div class="answer" aria-live="polite">
+    <p class="lead">Erasing one bit at <b id="ansT">300 K</b> costs at least</p>
+    <span class="big" id="ansE">2.87 × 10<sup>−21</sup> J</span>
+    <p class="sub" id="ansSub"></p>
+  </div>
+
+  <div class="chart" id="chart" role="group" aria-label="Chart of the minimum energy to erase one bit against temperature"></div>
+  <p class="hint">Drag across the chart, or use the slider. The scale runs from 0.01 K to 100,000 K.</p>
+  <input type="range" id="slider" min="-2" max="5" step="0.001" value="2.477" aria-label="Temperature on a logarithmic scale">
+
+  <section class="block" aria-labelledby="h-temp">
+    <h2 id="h-temp">Temperature</h2>
+    <div class="tempfields">
+      <div class="fld">
+        <label class="f" for="tInput">Exact value</label>
+        <div class="inline">
+          <input type="text" id="tInput" inputmode="decimal" autocomplete="off" value="300">
+          <select id="tUnit" aria-label="Temperature unit">
+            <option value="K">kelvin</option>
+            <option value="C">°C</option>
+            <option value="F">°F</option>
+          </select>
+        </div>
+        <p class="err" id="tErr" role="alert"></p>
+      </div>
+    </div>
+    <div class="chips" id="tempChips" aria-label="Temperature presets"></div>
+  </section>
+
+  <section class="block" aria-labelledby="h-data">
+    <h2 id="h-data">What you're erasing</h2>
+    <div class="datagrid">
+      <div>
+        <label class="f" for="aInput">Amount of data</label>
+        <div class="inline">
+          <input type="text" id="aInput" inputmode="decimal" autocomplete="off" value="1">
+          <select id="aUnit" aria-label="Data unit">
+            <option value="bits">bits</option>
+            <option value="bytes">bytes</option>
+            <option value="kB">kilobytes (kB)</option>
+            <option value="MB">megabytes (MB)</option>
+            <option value="GB" selected>gigabytes (GB)</option>
+            <option value="TB">terabytes (TB)</option>
+            <option value="digits">decimal digits</option>
+          </select>
+        </div>
+        <p class="err" id="aErr" role="alert"></p>
+        <p class="note" id="aNote"></p>
+      </div>
+      <div>
+        <label class="f" for="rInput">Times you erase it per second</label>
+        <input type="text" id="rInput" inputmode="decimal" autocomplete="off" value="1">
+        <p class="err" id="rErr" role="alert"></p>
+        <p class="note">Numbers like 1e9 work.</p>
+      </div>
+      <div>
+        <label class="f" for="hInput">Your hardware, femtojoules per bit</label>
+        <input type="text" id="hInput" inputmode="decimal" autocomplete="off" value="1">
+        <p class="err" id="hErr" role="alert"></p>
+        <p class="note">A modern chip is in the ballpark of 1 fJ (10<sup>−15</sup> J) per bit operation. Try your own number.</p>
+      </div>
+    </div>
+    <div class="chips" id="amountChips" aria-label="Amount presets"></div>
+  </section>
+
+  <section class="block" aria-labelledby="h-bill" aria-live="polite">
+    <h2 id="h-bill">The full bill</h2>
+    <dl class="rows" id="rows"></dl>
+  </section>
+
+  <section class="block" aria-labelledby="h-fine">
+    <h2 id="h-fine">What this does and doesn't say</h2>
+    <p class="fine">The limit is about erasing, meaning steps that can't be run backwards. Computing that never throws information away (reversible computing) can, in principle, get under it. And you only reach the floor by erasing infinitely slowly; anything faster costs more.</p>
+    <p class="fine">It was first measured in a lab in 2012 (Bérut and colleagues, in <i>Nature</i>), using a single microscopic bead held in a laser trap. A decimal digit carries log<sub>2</sub>10 ≈ 3.32 bits, which is what the "decimal digits" unit uses.</p>
+  </section>
+
+</main>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- constants ---------- */
+const KB = 1.380649e-23;            // J/K (exact, SI 2019)
+const EV = 1.602176634e-19;         // J per electronvolt
+const LN2 = Math.LN2;
+const LOG2_10 = Math.log2(10);
+const E_PER_K = KB * LN2;           // minimum joules per bit, per kelvin
+const LOG_E0 = Math.log10(E_PER_K);
+const LOG_MIN = -2, LOG_MAX = 5;    // 0.01 K .. 100,000 K
+const UNIT_BITS = { bits:1, bytes:8, kB:8e3, MB:8e6, GB:8e9, TB:8e12, digits:LOG2_10 };
+
+const TEMP_PRESETS = [
+  { k:2.725, name:'Cosmic background', short:'CMB' },
+  { k:4.2,   name:'Liquid helium',     short:'liquid He' },
+  { k:77,    name:'Liquid nitrogen',   short:'liquid N₂' },
+  { k:300,   name:'Room',              short:'room' },
+  { k:5772,  name:"Sun's surface",     short:"Sun's surface" }
+];
+const AMOUNT_PRESETS = [
+  { label:'1 bit',                    v:'1',   u:'bits' },
+  { label:'1 GB',                     v:'1',   u:'GB' },
+  { label:'1 TB',                     v:'1',   u:'TB' },
+  { label:'100 million digits of π',  v:'1e8', u:'digits' }
+];
+
+/* temperature colour scale: position = log10(T) */
+const STOPS = [
+  [-2,   [125,116,255]],   // 0.01 K  indigo
+  [0.45, [ 77,148,255]],   // ~3 K    blue
+  [1.9,  [ 63,208,214]],   // ~80 K   teal
+  [2.48, [255,179, 71]],   // 300 K   amber
+  [3.2,  [255,106, 82]],   // ~1600 K orange-red
+  [3.76, [255, 90, 95]],   // Sun     red
+  [5,    [224, 64,122]]    // 1e5 K   crimson
+];
+
+/* ---------- state ---------- */
+const S = { T:300, tUnit:'K', N:8e9, rate:1, hwJ:1e-15 };
+let geom = { ml:60, pw:600 };
+
+const $ = id => document.getElementById(id);
+const el = { chart:$('chart'), slider:$('slider'), tInput:$('tInput'), tUnit:$('tUnit'), tErr:$('tErr'),
+  aInput:$('aInput'), aUnit:$('aUnit'), aErr:$('aErr'), aNote:$('aNote'),
+  rInput:$('rInput'), rErr:$('rErr'), hInput:$('hInput'), hErr:$('hErr'),
+  ansT:$('ansT'), ansE:$('ansE'), ansSub:$('ansSub'), rows:$('rows'),
+  tempChips:$('tempChips'), amountChips:$('amountChips') };
+
+/* ---------- helpers ---------- */
+const clamp = (x,a,b) => Math.min(b, Math.max(a, x));
+const toK = (v,u) => u==='K' ? v : (u==='C' ? v + 273.15 : (v - 32) * 5/9 + 273.15);
+const fromK = (k,u) => u==='K' ? k : (u==='C' ? k - 273.15 : (k - 273.15) * 9/5 + 32);
+const parsePos = s => { const n = Number(String(s).trim().replace(/,/g,'')); return (String(s).trim() !== '' && isFinite(n) && n > 0) ? n : NaN; };
+const fmtInput = v => String(+v.toPrecision(4));
+
+/* scientific notation as HTML (uses <sup>) */
+function sciNum(x){
+  if (!isFinite(x)) return '—';
+  if (x === 0) return '0';
+  let e = Math.floor(Math.log10(Math.abs(x)));
+  let s = (x / Math.pow(10, e)).toFixed(2);
+  if (s === '10.00'){ e += 1; s = '1.00'; }
+  return e === 0 ? s : s + ' × 10<sup>' + String(e).replace('-','−') + '</sup>';
+}
+const sci = (x, unit) => sciNum(x) + (unit ? ' ' + unit : '');
+
+/* SI-prefixed plain text */
+const PREFIX = { '-24':'y','-21':'z','-18':'a','-15':'f','-12':'p','-9':'n','-6':'µ','-3':'m','0':'','3':'k','6':'M','9':'G','12':'T','15':'P','18':'E','21':'Z','24':'Y' };
+function si(x, unit){
+  if (!(x > 0) || !isFinite(x)) return '—';
+  let e3 = clamp(Math.floor(Math.log10(x) / 3) * 3, -24, 24);
+  const v = x / Math.pow(10, e3);
+  if (v >= 1000) return sci(x, unit);
+  return String(+v.toPrecision(3)) + ' ' + PREFIX[e3] + unit;
+}
+function fmtT(k){ return (k >= 1000 ? Math.round(k).toLocaleString('en-US') : String(+k.toPrecision(4))) + ' K'; }
+function fmtRatio(r){
+  if (r >= 1e6) return sciNum(r);
+  if (r >= 1)  return Number(r.toPrecision(3)).toLocaleString('en-US');
+  return String(+r.toPrecision(2));
+}
+/* plain-text version for SVG labels (no HTML allowed there) */
+function ratioPlain(r){
+  if (r >= 1e6) return '×' + r.toExponential(2).replace('e+','e');
+  if (r >= 1)  return '×' + Number(r.toPrecision(3)).toLocaleString('en-US');
+  return String(+r.toPrecision(2)) + '×';
+}
+
+/* ---------- accent colour from temperature ---------- */
+function tempRGB(lt){
+  for (let i = 1; i < STOPS.length; i++){
+    if (lt <= STOPS[i][0]){
+      const [p0,c0] = STOPS[i-1], [p1,c1] = STOPS[i];
+      const t = (lt - p0) / (p1 - p0);
+      return c0.map((v,j) => Math.round(v + (c1[j] - v) * t));
+    }
+  }
+  return STOPS[STOPS.length-1][1];
+}
+function applyAccent(lt){
+  const [r,g,b] = tempRGB(lt);
+  const root = document.documentElement.style;
+  root.setProperty('--accent', 'rgb(' + r + ',' + g + ',' + b + ')');
+  root.setProperty('--accent-rgb', r + ',' + g + ',' + b);
+}
+(function buildScale(){
+  const parts = STOPS.map(([p,c]) => 'rgb(' + c.join(',') + ') ' + ((p - LOG_MIN) / (LOG_MAX - LOG_MIN) * 100).toFixed(1) + '%');
+  document.documentElement.style.setProperty('--scale', 'linear-gradient(90deg,' + parts.join(',') + ')');
+})();
+
+/* ---------- chart ---------- */
+function drawChart(){
+  const W = Math.max(280, Math.floor(el.chart.clientWidth) || 640);
+  const narrow = W < 520;
+  const H = narrow ? 300 : Math.round(Math.min(400, Math.max(320, W * 0.46)));
+  const m = { l: narrow ? 60 : 66, r: narrow ? 10 : 22, t: 14, b: narrow ? 40 : 46 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  geom = { ml:m.l, pw:pw };
+
+  let y0 = -26, y1 = -14;
+  const lhw = Math.log10(S.hwJ);
+  y1 = Math.min(3, Math.max(y1, Math.ceil(lhw) + 1));
+  y0 = Math.min(y0, Math.floor(lhw) - 1);
+
+  const X = lt => m.l + (lt - LOG_MIN) / (LOG_MAX - LOG_MIN) * pw;
+  const Y = le => m.t + (y1 - le) / (y1 - y0) * ph;
+  const fl = lt => LOG_E0 + lt;
+
+  const lt = clamp(Math.log10(S.T), LOG_MIN, LOG_MAX);
+  let s = '';
+
+  // shaded region below the floor
+  s += '<polygon class="shade" points="' + [X(LOG_MIN),Y(fl(LOG_MIN)), X(LOG_MAX),Y(fl(LOG_MAX)), X(LOG_MAX),Y(y0), X(LOG_MIN),Y(y0)].join(' ') + '"/>';
+
+  // grid + tick labels
+  const xl = ['0.01','0.1','1','10','100','1k','10k','100k'];
+  for (let k = LOG_MIN; k <= LOG_MAX; k++){
+    s += '<line class="grid" x1="' + X(k) + '" x2="' + X(k) + '" y1="' + m.t + '" y2="' + (m.t+ph) + '"/>';
+    s += '<text class="tick" x="' + X(k) + '" y="' + (m.t+ph+17) + '" text-anchor="middle">' + xl[k - LOG_MIN] + '</text>';
+  }
+  for (let k = Math.ceil(y0); k <= Math.floor(y1); k++){
+    s += '<line class="grid" x1="' + m.l + '" x2="' + (m.l+pw) + '" y1="' + Y(k) + '" y2="' + Y(k) + '"/>';
+    if (Math.abs(k) % 2 === 0){
+      s += '<text class="tick" x="' + (m.l-8) + '" y="' + (Y(k)+4) + '" text-anchor="end">10<tspan dy="-5" font-size="9">' + String(k).replace('-','−') + '</tspan></text>';
+    }
+  }
+  s += '<line class="axis" x1="' + m.l + '" x2="' + m.l + '" y1="' + m.t + '" y2="' + (m.t+ph) + '"/>';
+  s += '<line class="axis" x1="' + m.l + '" x2="' + (m.l+pw) + '" y1="' + (m.t+ph) + '" y2="' + (m.t+ph) + '"/>';
+  s += '<text class="axtitle" x="' + (m.l + pw/2) + '" y="' + (H-4) + '" text-anchor="middle">Temperature (kelvin, log scale)</text>';
+  s += '<text class="axtitle" transform="translate(12 ' + (m.t + ph/2) + ') rotate(-90)" text-anchor="middle">' + (narrow ? 'Joules per bit' : 'Minimum energy per bit (joules)') + '</text>';
+
+  // your hardware line
+  const yh = Y(lhw);
+  s += '<line class="hwline" x1="' + m.l + '" x2="' + (m.l+pw) + '" y1="' + yh + '" y2="' + yh + '"/>';
+  s += '<text class="lbl" x="' + (m.l+8) + '" y="' + (yh-8) + '">Your hardware</text>';
+
+  // the floor
+  s += '<line class="floorline" x1="' + X(LOG_MIN) + '" y1="' + Y(fl(LOG_MIN)) + '" x2="' + X(LOG_MAX) + '" y2="' + Y(fl(LOG_MAX)) + '"/>';
+  const ang = Math.atan2(Y(fl(LOG_MAX)) - Y(fl(LOG_MIN)), X(LOG_MAX) - X(LOG_MIN)) * 180 / Math.PI;
+  s += '<text class="lbl soft" transform="translate(' + X(narrow ? -0.55 : -1) + ' ' + Y(fl(narrow ? -0.55 : -1)) + ') rotate(' + ang.toFixed(2) + ')" text-anchor="middle" dy="-10">' + (narrow ? 'kT ln 2 floor' : 'Landauer floor, kT ln 2') + '</text>';
+  if (!narrow){
+    s += '<text class="zone" x="' + (m.l+pw-10) + '" y="' + (Y(y0)-12) + '" text-anchor="end">Below the line: not possible when erasing a bit</text>';
+  }
+
+  // preset markers on the floor
+  TEMP_PRESETS.forEach((p,i) => {
+    const pl = Math.log10(p.k), px = X(pl), py = Y(fl(pl));
+    s += '<circle class="dot" cx="' + px + '" cy="' + py + '" r="3.8"/>';
+    if (!narrow && Math.abs(lt - pl) > 0.3){
+      const above = (i % 2 === 1);
+      s += '<text class="lbl soft" x="' + px + '" y="' + (above ? py-12 : py+20) + '" text-anchor="middle">' + p.short + '</text>';
+    }
+  });
+
+  // current temperature: guide, gap bracket, marker
+  const mx = X(lt), my = Y(fl(lt));
+  s += '<line class="guide" x1="' + mx + '" x2="' + mx + '" y1="' + (my+8) + '" y2="' + (m.t+ph) + '"/>';
+  if (Math.abs(yh - my) > 14){
+    s += '<line class="gap" x1="' + mx + '" x2="' + mx + '" y1="' + my + '" y2="' + yh + '"/>';
+    s += '<line class="gap" x1="' + (mx-5) + '" x2="' + (mx+5) + '" y1="' + yh + '" y2="' + yh + '"/>';
+    const r = S.hwJ / (E_PER_K * S.T);
+    const anchorEnd = mx > W - 130;
+    s += '<text class="lbl" x="' + (anchorEnd ? mx-10 : mx+10) + '" y="' + ((my+yh)/2 + 4) + '" text-anchor="' + (anchorEnd ? 'end' : 'start') + '">' + ratioPlain(r) + '</text>';
+  }
+  s += '<circle class="marker" cx="' + mx + '" cy="' + my + '" r="7.5"/>';
+  const tEnd = mx > W - 90;
+  s += '<text class="lbl acc" x="' + (tEnd ? mx-12 : mx+12) + '" y="' + (my+22) + '" text-anchor="' + (tEnd ? 'end' : 'start') + '">' + fmtT(S.T) + '</text>';
+
+  el.chart.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="At ' + fmtT(S.T) + ', the floor is ' + si(E_PER_K * S.T, 'J') + ' per bit">' + s + '</svg>';
+}
+
+/* ---------- render ---------- */
+function setErr(node, input, msg){
+  node.textContent = msg || '';
+  if (input) input.setAttribute('aria-invalid', msg ? 'true' : 'false');
+}
+
+function render(src){
+  const lt = clamp(Math.log10(S.T), LOG_MIN, LOG_MAX);
+  applyAccent(lt);
+  if (src !== 'slider') el.slider.value = lt;
+  if (src !== 'tinput'){ el.tInput.value = fmtInput(fromK(S.T, S.tUnit)); setErr(el.tErr, el.tInput, ''); }
+
+  [...el.tempChips.children].forEach((b,i) => b.setAttribute('aria-pressed', String(Math.abs(TEMP_PRESETS[i].k - S.T) < 1e-9 * S.T)));
+  const aVal = parsePos(el.aInput.value), aU = el.aUnit.value;
+  [...el.amountChips.children].forEach((b,i) => {
+    const p = AMOUNT_PRESETS[i];
+    b.setAttribute('aria-pressed', String(aU === p.u && aVal === Number(p.v)));
+  });
+
+  const Ebit = E_PER_K * S.T;
+  const Etot = Ebit * S.N;
+  const Stot = S.N * KB * LN2;
+  const Pw = Etot * S.rate;
+  const ratio = S.hwJ / Ebit;
+
+  el.ansT.textContent = fmtT(S.T);
+  el.ansE.innerHTML = sci(Ebit, 'J');
+  el.ansSub.textContent = si(Ebit, 'J') + ', or about ' + si(Ebit / EV, 'eV') + ', and it scales directly with temperature.';
+  el.aNote.innerHTML = '= ' + sci(S.N, 'bits');
+
+  const rows = [
+    ['Erasing everything you chose',
+      sci(Etot, 'J'),
+      si(Etot, 'J') + ', or about ' + si(Etot / EV, 'eV') + '.'],
+    ['Entropy released into the surroundings',
+      sci(Stot, 'J/K'),
+      'Each bit adds at least <i>k</i><sub>B</sub> ln 2 = ' + sci(KB * LN2, 'J/K') + ', at any temperature.'],
+    ['Minimum power at your rate',
+      sci(Pw, 'W'),
+      si(Pw, 'W') + ', erasing ' + (S.rate === 1 ? 'once per second' : sciNum(S.rate) + ' times per second') + '.'],
+    ['Bits one joule could erase',
+      sci(1 / Ebit, 'bits'),
+      'One kilowatt-hour: ' + sci(3.6e6 / Ebit, 'bits') + '.'],
+    ['Your hardware against the floor',
+      fmtRatio(ratio) + '×',
+      ratio >= 1
+        ? 'The floor is 1 part in ' + fmtRatio(ratio) + ' of what your hardware spends per bit.'
+        : '<span class="warn">That is under the floor, so it can\'t be a full bit erasure at this temperature.</span>']
+  ];
+  el.rows.innerHTML = rows.map(r => '<div class="row"><dt>' + r[0] + '</dt><dd><span class="v">' + r[1] + '</span><span class="n">' + r[2] + '</span></dd></div>').join('');
+
+  drawChart();
+}
+
+/* ---------- inputs ---------- */
+function readAmount(){
+  const v = parsePos(el.aInput.value);
+  if (isNaN(v)){ setErr(el.aErr, el.aInput, 'Enter an amount greater than zero.'); return false; }
+  setErr(el.aErr, el.aInput, ''); S.N = v * UNIT_BITS[el.aUnit.value]; return true;
+}
+
+el.slider.addEventListener('input', () => { S.T = Math.pow(10, Number(el.slider.value)); render('slider'); });
+
+el.tInput.addEventListener('input', () => {
+  const raw = el.tInput.value.trim().replace(/,/g,'');
+  const k = toK(Number(raw), S.tUnit);
+  if (raw !== '' && isFinite(k) && k > 0){ S.T = k; setErr(el.tErr, el.tInput, ''); render('tinput'); }
+  else setErr(el.tErr, el.tInput, 'Enter a temperature above absolute zero.');
+});
+el.tUnit.addEventListener('change', () => { S.tUnit = el.tUnit.value; render(); });
+
+el.aInput.addEventListener('input', () => { if (readAmount()) render('ainput'); });
+el.aUnit.addEventListener('change', () => { if (readAmount()) render(); });
+el.rInput.addEventListener('input', () => {
+  const v = parsePos(el.rInput.value);
+  if (isNaN(v)) setErr(el.rErr, el.rInput, 'Enter a rate greater than zero.');
+  else { setErr(el.rErr, el.rInput, ''); S.rate = v; render('rinput'); }
+});
+el.hInput.addEventListener('input', () => {
+  const v = parsePos(el.hInput.value);
+  if (isNaN(v)) setErr(el.hErr, el.hInput, 'Enter an energy greater than zero.');
+  else { setErr(el.hErr, el.hInput, ''); S.hwJ = v * 1e-15; render('hinput'); }
+});
+
+/* chips */
+TEMP_PRESETS.forEach(p => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip'; b.textContent = p.name + ' ' + fmtT(p.k);
+  b.setAttribute('aria-pressed','false');
+  b.addEventListener('click', () => { S.T = p.k; render(); });
+  el.tempChips.appendChild(b);
+});
+AMOUNT_PRESETS.forEach(p => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip'; b.textContent = p.label;
+  b.setAttribute('aria-pressed','false');
+  b.addEventListener('click', () => { el.aInput.value = p.v; el.aUnit.value = p.u; if (readAmount()) render(); });
+  el.amountChips.appendChild(b);
+});
+
+/* drag on the chart to set the temperature */
+let dragging = false;
+function moveTo(e){
+  const r = el.chart.getBoundingClientRect();
+  const t = clamp((e.clientX - r.left - geom.ml) / geom.pw, 0, 1);
+  S.T = Math.pow(10, LOG_MIN + t * (LOG_MAX - LOG_MIN));
+  render('chart');
+}
+el.chart.addEventListener('pointerdown', e => { dragging = true; try{ el.chart.setPointerCapture(e.pointerId); }catch(_){} moveTo(e); });
+el.chart.addEventListener('pointermove', e => { if (dragging) moveTo(e); });
+['pointerup','pointercancel','lostpointercapture'].forEach(t => el.chart.addEventListener(t, () => { dragging = false; }));
+
+if (window.ResizeObserver){
+  let lastW = 0;
+  new ResizeObserver(() => { const w = el.chart.clientWidth; if (w !== lastW){ lastW = w; drawChart(); } }).observe(el.chart);
+}
+
+readAmount();
+render();
+})();
+</script>
+</body>
+</html>
